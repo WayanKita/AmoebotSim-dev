@@ -89,9 +89,6 @@ void FillBoundingBox::activate() {
                     expand(label);
                     return;
                 }
-                if(!isContracted()){
-                    cout << "should not be here!";
-                }
                 _state = State::Retired;
                 return;
             }
@@ -106,76 +103,70 @@ void FillBoundingBox::activate() {
                 _state = State::Root;
                 return;
             }
-            for (int label = 0; label < 10; label++){
-                if(hasNbrAtLabel(label)){
-                    FillBoundingBox& follower = nbrAtLabel(label);
-                    if (follower.isContracted() && (follower._state == State::Follower)) {
-                        if(pointsAtMyTail(follower, getPointDir(follower))){
-                            if(canPull(label)){
-                                int contractDir = (tailDir() + 3) % 6;
-                                if(isHeadLabel(label)){
-                                    label=(label+1)%10;
-                                }
-                                pull(label);
-                                if(follower._state == State::Follower){
-                                    _state = State::Root;
-                                }
-                                follower._moveDir = dirToNbrDir(follower, contractDir);
-                                for(int i = 0; i<10;i++){
-                                    if(pointsAtMe(follower, i)){
-                                        if(follower.isHeadLabel(i)){
-                                            follower._moveDirExp = i;
-                                        }
-                                    }
-                                }
-                                return;
-                            }
-                        }
-
-                    }
+            int label = getPullLabel();
+            if(label > -1){
+                FillBoundingBox& follower = nbrAtLabel(label);
+                int contractDir = (tailDir() + 3) % 6;
+                pull(label);
+                if(follower._state == State::Follower){
+                    _state = State::Root;
                 }
+                follower._moveDir = dirToNbrDir(follower, contractDir);
+                updateMoveDirExp(follower);
+                return;
             }
-
         }
         else if (_state == State::Root) {
-            for (int label = 0; label < 10; label++){
-                if(hasNbrAtLabel(label)){
-                    FillBoundingBox& follower = nbrAtLabel(label);
-                    if(follower._state == State::Leader){
-                        continue;
-                    }
-                    if(pointsAtMyTail(follower, getPointDir(follower))){
-                        if (follower.isContracted() && (follower._state == State::Follower ||follower._state == State::Root)) {
-                            if(canPull(label)){
-                                int contractDir = (tailDir() + 3) % 6;
-                                if(isHeadLabel(label)){
-                                    label=(label+1)%10;
-                                }                               
-                                pull(label);
-                                if(follower._state == State::Follower){
-                                    follower._state = State::Sroot;
-                                }
-                                if(_moveDirExp == -1){
-                                    _state = State::Leader;
-                                }else{
-                                    _state = State::Coater;
-                                }
-                                follower._moveDir = dirToNbrDir(follower, contractDir);
-                                for(int i = 0; i<10;i++){
-                                    if(pointsAtMe(follower, i)){
-                                        if(follower.isHeadLabel(i)){
-                                            follower._moveDirExp = i;
-                                        }
-                                    }
-                                }
-                                return;
-                            }
-                        }
+//            for (int label = 0; label < 10; label++){
+//                if(hasNbrAtLabel(label)){
+//                    FillBoundingBox& follower = nbrAtLabel(label);
+//                    if(follower._state == State::Leader){
+//                        continue;
+//                    }
+//                    if(pointsAtMyTail(follower, getPointDir(follower))){
+//                        if (follower.isContracted() && (follower._state == State::Follower ||follower._state == State::Root)) {
+//                            if(canPull(label)){
+//                                int contractDir = (tailDir() + 3) % 6;
+//                                if(isHeadLabel(label)){
+//                                    label=(label+1)%10;
+//                                }
+//                                pull(label);
+//                                if(follower._state == State::Follower){
+//                                    follower._state = State::Sroot;
+//                                }
+//                                if(_moveDirExp == -1){
+//                                    _state = State::Leader;
+//                                }else{
+//                                    _state = State::Coater;
+//                                }
+//                                follower._moveDir = dirToNbrDir(follower, contractDir);
+//                                updateMoveDirExp(follower);
+//                                return;
+//                            }
+//                        }
 
-                    }
+//                    }
+//                }
+
+//            }
+            int label = getPullLabel();
+            if(label > -1){
+                FillBoundingBox& follower = nbrAtLabel(label);
+                int contractDir = (tailDir() + 3) % 6;
+                pull(label);
+                if(follower._state == State::Follower){
+                    follower._state = State::Sroot;
                 }
-
+                if(_moveDirExp == -1){
+                    _state = State::Leader;
+                }else{
+                    _state = State::Coater;
+                }
+                follower._moveDir = dirToNbrDir(follower, contractDir);
+                updateMoveDirExp(follower);
+                return;
             }
+
         }
 
         // if particle is a Leader, pull one of its follower
@@ -189,15 +180,10 @@ void FillBoundingBox::activate() {
                                 if(isHeadLabel(label)){
                                     label=(label+1)%10;
                                 }
+                                int contractDir = (tailDir() + 3) % 6;
                                 pull(label);
-                                follower._moveDir = dirToNbrDir(follower, _moveDir);
-                                for(int i = 0; i<10;i++){
-                                    if(pointsAtMe(follower, i)){
-                                        if(follower.isHeadLabel(i)){
-                                            follower._moveDirExp = i;
-                                        }
-                                    }
-                                }
+                                follower._moveDir = dirToNbrDir(follower, contractDir);
+                                updateMoveDirExp(follower);
                                 return;
                             }
                         }
@@ -230,13 +216,7 @@ void FillBoundingBox::activate() {
                                     }
                                     pull(label);
                                     follower._moveDir = dirToNbrDir(follower, contractDir);
-                                    for(int i = 0; i<10;i++){
-                                        if(pointsAtMe(follower, i)){
-                                            if(follower.isHeadLabel(i)){
-                                                follower._moveDirExp = i;
-                                            }
-                                        }
-                                    }
+                                    updateMoveDirExp(follower);
                                     return;
                                 }
                             }
@@ -333,6 +313,16 @@ int FillBoundingBox::getExpandLabel() const {
     return -1;
 }
 
+void FillBoundingBox::updateMoveDirExp(FillBoundingBox& follower) const {
+    for(int i = 0; i<10;i++){
+        if(pointsAtMe(follower, i)){
+            if(follower.isHeadLabel(i)){
+                follower._moveDirExp = i;
+            }
+        }
+    }
+}
+
 
 int FillBoundingBox::getFollowerLabel() const {
     int label_limit;
@@ -373,9 +363,6 @@ int FillBoundingBox::getPullLabel() const {
                 if(pointsAtMyTail(follower, getPointDir(follower))){
                     if(isHeadLabel(label)){
                         label=(label+1)%10;
-                    }
-                    if(!follower._ready){
-                        return -1;
                     }
                     return label;
                 }

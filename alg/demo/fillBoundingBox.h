@@ -94,6 +94,7 @@ class FillBoundingBox : public AmoebotParticle {
 
   int getPullLabel() const;
 
+  void updateMoveDirExp(FillBoundingBox &follower) const;
 protected:
   // Returns a random State.
   State getRandColor() const;
