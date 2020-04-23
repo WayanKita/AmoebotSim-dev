@@ -13,14 +13,17 @@ FillBoundingBox::FillBoundingBox(const Node head, const int globalTailDir,
                                      AmoebotSystem& system,
                                      State state)
     : AmoebotParticle(head, globalTailDir, orientation, system),
-      _state(state),
-      _moveDir(-1),
-      _moveDirExp(-1) {}
+        _state(state),
+        _moveDir(-1),
+        _moveDirExp(-1),
+        _branchDir(-1),
+        _branchDirExp(-1) {}
 
 void FillBoundingBox::activate() {
     // if particle is contracted
     if (isContracted()) {
 
+        // *** ROOT *** //
         if (_state == State::Root) {
             if(_moveDir != -1){
                 if (hasNbrAtLabel(_moveDir)) {
@@ -47,8 +50,9 @@ void FillBoundingBox::activate() {
             return;
         }
 
-        //if particle is Inactive and has a follower or leader in its neighbourhood
-        if (_state == State::Inactive) {
+        // *** INACTIVE *** //
+        else if (_state == State::Inactive) {
+            //if particle is Inactive and has a follower or leader in its neighbourhood
             if (hasNbrInState({State::Leader, State::Follower, State::Root})) {
                 // if particle is Innactive, attempt to follow leader, else follow follower
                 if (hasNbrInState({State::Leader, State::Root})){
@@ -62,10 +66,12 @@ void FillBoundingBox::activate() {
                 }
             }
         }
+
+        // *** FOLLOWER || COATER *** //
         else if (_state == State::Follower || _state == State::Coater) {
             if(hasNbrAtLabel(_moveDir)){
-                FillBoundingBox& particle = nbrAtLabel(_moveDir);
-                if(particle._state == State::Retired){
+                FillBoundingBox& moveDirNbr = nbrAtLabel(_moveDir);
+                if(moveDirNbr._state == State::Retired){
                     int label = getExpandLabel();
                     if(label >= 0){
                         expand(label);
@@ -75,13 +81,27 @@ void FillBoundingBox::activate() {
                         _state = State::Retired;
                     }
                     return;
+                }else if(_state == State::Coater){
+                    int rndNumber = randInt(1, 100);
+                    if(rndNumber > 95 && !hasNbrInState({State::Root, State::Sroot})){
+                        int label = getExpandLabel();
+                        if(label > -1){
+                            _branchDir = _moveDir;
+                            expand(label);
+                            _branchDirExp = updateLeaderDir(moveDirNbr);
+                            _moveDir = label;
+                            _state = State::Leader;
+                        }
+                        return;
+                    }
                 }
             }
             return;
-        } //Follower contracted subroutine end
+        }
 
-        //if particle is a Leader, move in a free direction
+        // *** LEADER *** //
         else if (_state == State::Leader) {
+            //if particle is a Leader, move in a free direction
             if(!hasNbrInState({State::Inactive})){
                 int label = getExpandLabel();
                 if(label >= 0 ){
@@ -94,11 +114,36 @@ void FillBoundingBox::activate() {
             }
             return;
         }
-        return;
-    } else {  // isExpanded().
 
+        // *** BRANCH *** //
+        else if (_state == State::Branch) {
+            if(hasNbrAtLabel(_moveDir)){
+                FillBoundingBox& particle = nbrAtLabel(_moveDir);
+                if(particle._state == State::Retired){
+                    if(_branchDir != -1){
+                        if(hasNbrAtLabel(_branchDir)){
+                            FillBoundingBox& particle_brch = nbrAtLabel(_branchDir);
+                            if(particle_brch._state == State::Retired){
+                                _state = State::Retired;
+                            }
+                        }
+                    }else{
+                        _state = State::Retired;
+                    }
+
+                }
+            }
+            return;
+        }
+        return;
+
+    // ************    EXPANDED    ************ //
+    } else {
+
+        // *** SMALL ROOT *** //
         if (_state == State::Sroot) {
             if (getFollowerLabel() < 0){
+                // bug leader expdir
                 contractTail();
                 _state = State::Root;
                 return;
@@ -106,53 +151,57 @@ void FillBoundingBox::activate() {
             int label = getPullLabel();
             if(label > -1){
                 FillBoundingBox& follower = nbrAtLabel(label);
-                int contractDir = (tailDir() + 3) % 6;
+                int moveDir = (tailDir() + 3) % 6;
                 pull(label);
                 if(follower._state == State::Follower){
                     _state = State::Root;
                 }
-                follower._moveDir = dirToNbrDir(follower, contractDir);
-                updateMoveDirExp(follower);
-                return;
+                updateMoveDir(follower, moveDir);
             }
+            return;
         }
-        else if (_state == State::Root) {
-//            for (int label = 0; label < 10; label++){
-//                if(hasNbrAtLabel(label)){
-//                    FillBoundingBox& follower = nbrAtLabel(label);
-//                    if(follower._state == State::Leader){
-//                        continue;
-//                    }
-//                    if(pointsAtMyTail(follower, getPointDir(follower))){
-//                        if (follower.isContracted() && (follower._state == State::Follower ||follower._state == State::Root)) {
-//                            if(canPull(label)){
-//                                int contractDir = (tailDir() + 3) % 6;
-//                                if(isHeadLabel(label)){
-//                                    label=(label+1)%10;
-//                                }
-//                                pull(label);
-//                                if(follower._state == State::Follower){
-//                                    follower._state = State::Sroot;
-//                                }
-//                                if(_moveDirExp == -1){
-//                                    _state = State::Leader;
-//                                }else{
-//                                    _state = State::Coater;
-//                                }
-//                                follower._moveDir = dirToNbrDir(follower, contractDir);
-//                                updateMoveDirExp(follower);
-//                                return;
-//                            }
-//                        }
 
-//                    }
-//                }
-
-//            }
+        // *** SMALL BRANCH *** //
+        else if (_state == State::Sbranch) {
             int label = getPullLabel();
             if(label > -1){
                 FillBoundingBox& follower = nbrAtLabel(label);
-                int contractDir = (tailDir() + 3) % 6;
+                FillBoundingBox& moveBranchDirNbr = nbrAtLabel(_branchDirExp);
+                int moveDir = (tailDir() + 3) % 6;
+                //handleBranchPull(follower);
+                pull(label);
+                _state = State::Branch;
+                updateMoveDir(follower, moveDir);
+                updateBranchDir(moveBranchDirNbr);
+            }
+            return;
+        }
+
+        // *** BRANCH *** //
+        else if (_state == State::Branch) {
+            int label = getPullLabel();
+            if(label > -1){
+                FillBoundingBox& follower = nbrAtLabel(label);
+                FillBoundingBox& moveDirNbr = nbrAtLabel(_branchDirExp);
+                int moveDir = (tailDir() + 3) % 6;
+                //handleBranchPull(follower);
+                pull(label);
+                follower._state = State::Sbranch;
+                updateMoveDir(follower, moveDir);
+                updateSbranchExpDir(follower, moveDirNbr);
+                _state = State::Coater;
+                _branchDir = -1;
+                _branchDirExp = -1;
+            }
+            return;
+        }
+
+        // *** ROOT *** //
+        else if (_state == State::Root) {
+            int label = getPullLabel();
+            if(label > -1){
+                FillBoundingBox& follower = nbrAtLabel(label);
+                int moveDir = (tailDir() + 3) % 6;
                 pull(label);
                 if(follower._state == State::Follower){
                     follower._state = State::Sroot;
@@ -162,70 +211,75 @@ void FillBoundingBox::activate() {
                 }else{
                     _state = State::Coater;
                 }
-                follower._moveDir = dirToNbrDir(follower, contractDir);
-                updateMoveDirExp(follower);
+                updateMoveDir(follower, moveDir);
+                return;
+            }
+        }
+
+        // *** LEADER *** //
+        else if (_state == State::Leader) {
+            // if particle is a Leader, pull one of its follower
+            if(_branchDir == -1){
+                // pulling coater
+                int label = getPullLabel();
+                if(label > -1){
+                    int moveDir = (tailDir() + 3) % 6;
+                    FillBoundingBox& follower = nbrAtLabel(label);
+                    pull(label);
+                    updateMoveDir(follower, moveDir);
+                }
+            }else{
+                // pulling branch
+                int label = getPullLabel();
+                if(label > -1){
+                    int moveDir = (tailDir() + 3) % 6;
+                    FillBoundingBox& branch = nbrAtLabel(label);
+                    if(branch._state == State::Branch){
+                        // pull branch
+                        //handleBranchPull(branch);
+                        FillBoundingBox& otherFollower = branch.nbrAtLabel(branch._moveDir);
+                        pull(label);
+                        updateMoveDir(branch, moveDir);
+                        updateBranchExpDir(branch, otherFollower);
+                        _branchDir = -1;
+                        _branchDirExp = -1;
+                    }else{
+                        // first pull, pull coater and transform it into an exp Sbranch
+                        FillBoundingBox& otherFollower = nbrAtLabel(_branchDirExp);
+                        pull(label);
+                        branch._state = State::Sbranch;
+                        branch._branchDir = dirToNbrDir(branch, _branchDir);
+                        updateMoveDir(branch, moveDir);
+                        updateSbranchExpDir(branch, otherFollower);
+                    }
+                }
                 return;
             }
 
-        }
-
-        // if particle is a Leader, pull one of its follower
-        else if (_state == State::Leader) {
-            for (int label = 0; label < 10; label++){
-                if(hasNbrAtLabel(label)){
-                    FillBoundingBox& follower = nbrAtLabel(label);
-                    if(pointsAtMyTail(follower, getPointDir(follower))){
-                        if (follower.isContracted() && (follower._state == State::Follower ||follower._state == State::Root ||follower._state == State::Coater)) {
-                            if(canPull(label)){
-                                if(isHeadLabel(label)){
-                                    label=(label+1)%10;
-                                }
-                                int contractDir = (tailDir() + 3) % 6;
-                                pull(label);
-                                follower._moveDir = dirToNbrDir(follower, contractDir);
-                                updateMoveDirExp(follower);
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
             return;
 
-        // if particle is Follower
+        // *** FOLLOWER || COATER *** //
         }else if(_state == State::Follower || _state == State::Coater){
+            int label;
+            int moveDir = (tailDir() + 3) % 6;
+
             if(hasNbrInState({State::Inactive})){
                 return;
             }else{
-                int label = getFollowerLabel();
+                label = getFollowerLabel();
                 if(label == -1){
                     contractTail();
                     return;
                 }
             }
-            for (int label = 0; label < 10; label++){
-                if (hasNbrAtLabel(label)){
-                    FillBoundingBox& follower = nbrAtLabel(label);
-                    if(follower._state == State::Follower ||follower._state == State::Root ||follower._state == State::Coater){
-                        if(pointsAtMyTail(follower, getPointDir(follower))){
-                            if (follower.isContracted()) {
-                                if(canPull(label)){
-                                    int contractDir = (tailDir() + 3) % 6;
-                                    if(isHeadLabel(label)){
-                                        label=(label+1)%10;
-                                    }
-                                    pull(label);
-                                    follower._moveDir = dirToNbrDir(follower, contractDir);
-                                    updateMoveDirExp(follower);
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                }
+            label = getPullLabel();
+            if(label > -1){
+                FillBoundingBox& follower = nbrAtLabel(label);
+                //handleBranchPull(follower);
+                pull(label);
+                updateMoveDir(follower, moveDir);
             }
             return;
-
         }
         return;
     }
@@ -240,9 +294,10 @@ int FillBoundingBox::headMarkColor() const {
     case State::Leaf:       return 0x00ff00;
     case State::Follower:   return 0x0000ff;
     case State::Coater:     return 0x4c4cff;
-    case State::Branch:     return 0xfd8521;
     case State::Root:       return 0xfdf421;
     case State::Sroot:      return 0xb1aa17;
+    case State::Branch:     return 0x210808;
+    case State::Sbranch:    return 0xffff00;
   }
   return -1;
 }
@@ -252,12 +307,14 @@ int FillBoundingBox::tailMarkColor() const {
 }
 
 int FillBoundingBox::headMarkDir() const {
-  return (_state == State::Leader || _state == State::Follower || _state == State::Root || _state == State::Sroot || _state == State::Coater) ? _moveDir : -1;
+    return (_state == State::Leader || _state == State::Follower || _state == State::Root || _state == State::Sroot || _state == State::Coater || _state== State::Branch || _state== State::Sbranch) ? _moveDir : -1;
 }
 
 FillBoundingBox& FillBoundingBox::nbrAtLabel(int label) const {
   return AmoebotParticle::nbrAtLabel<FillBoundingBox>(label);
 }
+
+
 
 QString FillBoundingBox::inspectionText() const {
   QString text;
@@ -275,8 +332,8 @@ QString FillBoundingBox::inspectionText() const {
     case State::Retired:    return "black\n";
     case State::Leaf:       return "green\n";
     case State::Follower:   return "blue\n";
-    case State::Root:   return "yellow\n";
-    case State::Branch:   return "orange\n";
+    case State::Root:       return "yellow\n";
+    case State::Branch:     return "brown\n";
     }
     return "no state\n";
   }();
@@ -297,6 +354,14 @@ int FillBoundingBox::getPointDir(FillBoundingBox& nbr) const {
     }
 }
 
+int FillBoundingBox::getPointDirBranch(FillBoundingBox& nbr) const {
+    if(nbr.isContracted()){
+        return nbr._branchDir;
+    }else{
+        return nbr._branchDirExp;
+    }
+}
+
 
 int FillBoundingBox::getExpandLabel() const {
     for (int label = 0; label < 6; label++){
@@ -313,12 +378,117 @@ int FillBoundingBox::getExpandLabel() const {
     return -1;
 }
 
-void FillBoundingBox::updateMoveDirExp(FillBoundingBox& follower) const {
+void FillBoundingBox::updateMoveDir(FillBoundingBox& follower, int moveDir) const {
+    follower._moveDir = dirToNbrDir(follower, moveDir);
     for(int i = 0; i<10;i++){
         if(pointsAtMe(follower, i)){
             if(follower.isHeadLabel(i)){
                 follower._moveDirExp = i;
             }
+        }
+    }
+}
+
+// branch pulls coater to make him a Sbranch
+void FillBoundingBox::updateSbranchExpDir(FillBoundingBox& smallBranch, FillBoundingBox& otherFollower) const {
+    for(int i = 0; i<10;i++){
+        if(smallBranch.hasNbrAtLabel(i)){
+            if(otherFollower.isContracted()){
+                if(smallBranch.nbrNodeReachedViaLabel(i) == otherFollower.head){
+                    smallBranch._branchDirExp = i;
+                }
+            }else{
+                if(smallBranch.nbrNodeReachedViaLabel(i) == otherFollower.tail()){
+                    smallBranch._branchDirExp = i;
+                }
+            }
+        }
+    }
+}
+
+
+//when particle pulls a contracted branch
+void FillBoundingBox::updateBranchExpDir(FillBoundingBox& branch, FillBoundingBox& otherFollower) const {
+    for(int i = 0; i < 10; i++){
+        if(branch.hasNbrAtLabel(i)){
+            if(otherFollower.isContracted()){
+                if(branch.nbrNodeReachedViaLabel(i) == otherFollower.head){
+                    branch._branchDirExp = i;
+                }
+            }else{
+                if(branch.nbrNodeReachedViaLabel(i) == otherFollower.tail()){
+                    branch._branchDirExp = i;
+                }
+            }
+        }
+    }
+}
+
+void FillBoundingBox::updateBranchDir(FillBoundingBox& moveBranchDirNbr) const {
+    for(int i = 0; i < 6; i++){
+        if(hasNbrAtLabel(i)){
+            if(moveBranchDirNbr.isContracted()){
+                if(nbrNodeReachedViaLabel(i) == moveBranchDirNbr.head){
+                    moveBranchDirNbr._branchDir = i;
+                }
+            }else{
+                if(nbrNodeReachedViaLabel(i) == moveBranchDirNbr.tail()){
+                    moveBranchDirNbr._branchDir = i;
+                }
+            }
+        }
+    }
+}
+
+
+// when coater branches off to become leader, update new leader info
+int FillBoundingBox::updateLeaderDir(FillBoundingBox& moveDirNbr) const {
+    for(int i = 0; i < 10; i++){
+        if(hasNbrAtLabel(i)){
+            if(moveDirNbr.isContracted()){
+                if(nbrNodeReachedViaLabel(i) == moveDirNbr.head){
+                    return i;
+                }
+            }else{
+                if(nbrNodeReachedViaLabel(i) == moveDirNbr.tail()){
+                    return i;
+                }
+            }
+
+        }
+    }
+    return -1;
+}
+
+void FillBoundingBox::inverseBranchDir(FillBoundingBox& branch) const {
+    int moveDir = branch._branchDir;
+    int moveDirExp = branch._branchDirExp;
+    branch._branchDir = branch._moveDir;
+    branch._branchDirExp = branch._moveDirExp;
+    branch._moveDir = moveDir;
+    branch._moveDirExp = moveDirExp;
+}
+
+bool FillBoundingBox::checkIfInverseBranchPull(FillBoundingBox& branch) const {
+    if(branch._state != State::Branch && branch._state != State::Sbranch){
+        return false;
+    }
+    if(branch._branchDir < 0){
+        cout << "SHOULD NOT GET HERE";
+        return false;
+    }
+    if(pointsAtMe(branch, branch._branchDir)){
+        return true;
+    }else if(pointsAtMe(branch, branch._moveDir)){
+        return false;
+    }
+    return false;
+}
+
+void FillBoundingBox::handleBranchPull(FillBoundingBox& nbr) const {
+    if(nbr._state == State::Branch){
+        if(checkIfInverseBranchPull(nbr)){
+            inverseBranchDir(nbr);
         }
     }
 }
@@ -334,10 +504,15 @@ int FillBoundingBox::getFollowerLabel() const {
     for (int label = 0; label < label_limit; label++){
         if (hasNbrAtLabel(label)){
             FillBoundingBox& follower = nbrAtLabel(label);
-            if (getPointDir(follower) != -1 && (follower._state == State::Follower || follower._state == State::Sroot ||follower._state == State::Root ||follower._state == State::Coater)){
+            if (getPointDir(follower) != -1 && (follower._state == State::Follower || follower._state == State::Sroot ||follower._state == State::Root ||follower._state == State::Coater || follower._state == State::Sbranch ||follower._state == State::Branch)){
                 if(isContracted()){
                     if(pointsAtMe(follower, getPointDir(follower))){
                         return label;
+                    }
+                    if(follower._state == State::Branch || follower._state == State::Sbranch || follower._state == State::Leader){
+                        if(pointsAtMe(follower, follower._branchDir)){
+                            return label;
+                        }
                     }
                 }else{
                     if(pointsAtMyTail(follower, getPointDir(follower))){
@@ -345,6 +520,11 @@ int FillBoundingBox::getFollowerLabel() const {
                             label=(label+1)%10;
                         }
                         return label;
+                    }
+                    if(follower._state == State::Leader){
+                        if(pointsAtMe(follower, follower._branchDirExp)){
+                            return label;
+                        }
                     }
                 }
             }
@@ -359,8 +539,16 @@ int FillBoundingBox::getPullLabel() const {
     for (int label = 0; label < label_limit; label++){
         if (hasNbrAtLabel(label)){
             FillBoundingBox& follower = nbrAtLabel(label);
-            if (getPointDir(follower) != -1 && follower.isContracted() && (follower._state == State::Follower ||follower._state == State::Root ||follower._state == State::Coater)){
+            if (getPointDir(follower) != -1 && follower.isContracted() && (follower._state == State::Follower ||follower._state == State::Root ||follower._state == State::Coater || follower._state == State::Branch)){
                 if(pointsAtMyTail(follower, getPointDir(follower))){
+                    if(isHeadLabel(label)){
+                        label=(label+1)%10;
+                    }
+                    return label;
+                }
+            }
+            if (getPointDir(follower) != -1 && follower.isContracted() && follower._state == State::Branch){
+                if(pointsAtMyTail(follower, follower._branchDir)){
                     if(isHeadLabel(label)){
                         label=(label+1)%10;
                     }
@@ -436,7 +624,7 @@ FillBoundingBoxSystem::FillBoundingBoxSystem(unsigned int numParticles) {
 
   int cond = 0;
   int num_particle_row = 8;
-  int num_row = 22;
+  int num_row = 2;
   for (int y = 0; y < num_row; ++y) {
   cond = 8+y;
     for (int x = 0; x < num_particle_row; ++x) {

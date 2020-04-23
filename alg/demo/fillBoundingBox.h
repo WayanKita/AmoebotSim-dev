@@ -28,9 +28,10 @@ class FillBoundingBox : public AmoebotParticle {
     Leaf,
     Follower,
     Coater,
-    Branch,
     Root,
     Sroot,
+    Branch,
+    Sbranch,
   };
 
   // Constructs a new particle with a node position for its head, a global
@@ -94,7 +95,20 @@ class FillBoundingBox : public AmoebotParticle {
 
   int getPullLabel() const;
 
-  void updateMoveDirExp(FillBoundingBox &follower) const;
+  int getPointDirBranch(FillBoundingBox &nbr) const;
+
+  void updateMoveDir(FillBoundingBox &follower, int moveDir) const;
+
+  void inverseBranchDir(FillBoundingBox &branch) const;
+
+  bool checkIfInverseBranchPull(FillBoundingBox &branch) const;
+
+  void handleBranchPull(FillBoundingBox &nbr) const;
+
+  int updateLeaderDir(FillBoundingBox &moveDirNbr) const;
+  void updateBranchExpDir(FillBoundingBox &branch, FillBoundingBox &otherFollower) const;
+  void updateSbranchExpDir(FillBoundingBox &smallBranch, FillBoundingBox &otherFollower) const;
+  void updateBranchDir(FillBoundingBox &moveBranchDirNbr) const;
 protected:
   // Returns a random State.
   State getRandColor() const;
@@ -104,6 +118,8 @@ protected:
   bool _ready;
   int _moveDir;
   int _moveDirExp;
+  int _branchDir;
+  int _branchDirExp;
 
  private:
   friend class FillBoundingBoxSystem;
