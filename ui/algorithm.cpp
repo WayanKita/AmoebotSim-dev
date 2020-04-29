@@ -68,6 +68,8 @@ AlgorithmList::AlgorithmList() {
   _algorithms.back()->addParameter("Hole Prob.", "0.2");
 
   /* ALGORITHMS */
+  _algorithms.push_back(new Algorithm("Test", "test"));
+
 
   // Compression.
   _algorithms.push_back(new Algorithm("Compression", "compression"));

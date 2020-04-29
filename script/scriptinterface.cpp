@@ -12,6 +12,7 @@
 
 #include "alg/demo/discodemo.h"
 #include "alg/demo/pulldemo.h"
+#include "alg/test.h"
 #include "alg/demo/tokendemo.h"
 #include "alg/compression.h"
 #include "alg/infobjcoating.h"
@@ -137,6 +138,10 @@ void ScriptInterface::discodemo(const int numParticles, const int counterMax) {
 
 void ScriptInterface::pulldemo() {
   sim.setSystem(std::make_shared<PullDemoSystem>());
+}
+
+void ScriptInterface::test() {
+  sim.setSystem(std::make_shared<TestSystem>());
 }
 
 void ScriptInterface::tokendemo(const int numParticles, const double holeProb) {

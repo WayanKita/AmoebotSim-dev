@@ -16,6 +16,7 @@ HEADERS += \
     alg/compression.h \
     alg/infobjcoating.h \
     alg/shapeformation.h \
+    alg/test.h \
     core/amoebotparticle.h \
     core/amoebotsystem.h \
     core/localparticle.h \
@@ -45,6 +46,7 @@ SOURCES += \
     alg/compression.cpp \
     alg/infobjcoating.cpp \
     alg/shapeformation.cpp \
+    alg/test.cpp \
     core/amoebotparticle.cpp \
     core/amoebotsystem.cpp \
     core/localparticle.cpp \
