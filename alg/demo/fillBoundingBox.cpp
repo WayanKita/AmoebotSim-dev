@@ -72,7 +72,6 @@ void FillBoundingBox::activate() {
         else if (_state == State::Follower || _state == State::Coater) {
             if(hasNbrAtLabel(_moveDir)){
                 FillBoundingBox& moveDirNbr = nbrAtLabel(_moveDir);
-                moveDirNbr._compareInt = 1;
                 if(moveDirNbr._state == State::Retired){
                     int label = getExpandLabel();
                     if(label >= 0){
@@ -88,16 +87,13 @@ void FillBoundingBox::activate() {
                         int label = getExpandLabel();
                         if(label > -1){
                             expand(label);
-                            cout << "coater branching off \n";
-                            _branchDirExp = getBranchDir();
-                            cout << "branch exp dir set to " << _branchDirExp << "\n";
-                            Q_ASSERT(_branchDirExp  > -1);
+                            _branchDir = _moveDir;
+                            _branchDirExp = (findExpDir(label, tailDir()) + (2+findCCDistance(_moveDir,label)))%10;
                             _moveDir = label;
                             _state = State::Leader;
                         }
                     }
                 }
-                moveDirNbr._compareInt = 0;
             }
             return;
         }
@@ -167,17 +163,13 @@ void FillBoundingBox::activate() {
         // *** SMALL BRANCH *** //
         else if (_state == State::Sbranch) {
             int label = getPullLabel();
-            if(label > -1){  
+            if(label > -1){
                 FillBoundingBox& follower = nbrAtLabel(label);
                 handleBranchPull(follower);
-                FillBoundingBox& moveBranchDirNbr = nbrAtLabel(_branchDirExp);
-                moveBranchDirNbr._compareInt = 1;
                 int moveDir = (tailDir() + 3) % 6;
                 pull(label);
                 _state = State::Branch;
                 updateMoveDir(follower, moveDir);
-                _branchDir = getBranchDir();
-                moveBranchDirNbr._compareInt = 0;
             }
             return;
         }
@@ -188,14 +180,12 @@ void FillBoundingBox::activate() {
             if(label > -1){
                 FillBoundingBox& follower = nbrAtLabel(label);
                 handleBranchPull(follower);
-                FillBoundingBox& moveDirNbr = nbrAtLabel(_branchDirExp);
-                moveDirNbr._compareInt = 1;
                 int moveDir = (tailDir() + 3) % 6;
                 pull(label);
                 follower._state = State::Sbranch;
                 updateMoveDir(follower, moveDir);
-                setBranchDir(follower);
-                moveDirNbr._compareInt = 0;
+                follower._branchDir = _branchDir;
+                follower._branchDirExp = findExpDir(follower._branchDir, follower.tailDir());
                 _state = State::Coater;
                 _branchDir = -1;
                 _branchDirExp = -1;
@@ -234,12 +224,10 @@ void FillBoundingBox::activate() {
                 if(branch._state == State::Branch){
                     // pull branch
                     handleBranchPull(branch);
-                    FillBoundingBox& otherFollower = branch.nbrAtLabel(branch._moveDir);
-                    otherFollower._compareInt = 1;
                     pull(label);
+
                     updateMoveDir(branch, moveDir);
-                    setBranchDir(branch);
-                    otherFollower._compareInt = 0;
+                    branch._branchDirExp = (findExpDir(branch._moveDir, branch.tailDir()) + 2+findCCDistance(branch._moveDir, branch._branchDir))%10;
                     _branchDir = -1;
                     _branchDirExp = -1;
                     return;
@@ -253,13 +241,13 @@ void FillBoundingBox::activate() {
                     }
                 }else{
                     // first pull, pull coater and transform it into an exp Sbranch
-                    FillBoundingBox& otherFollower = nbrAtLabel(_branchDirExp);
-                    otherFollower._compareInt = 1;
                     pull(label);
                     branch._state = State::Sbranch;
                     updateMoveDir(branch, moveDir);
-                    setBranchDir(branch);
-                    otherFollower._compareInt = 0;
+                    branch._branchDir = _branchDir;
+                    branch._branchDirExp = findExpDir(branch._branchDir, branch.tailDir());
+                    _branchDir = -1;
+                    _moveDir = -1;
                     return;
                 }
             }
@@ -284,12 +272,9 @@ void FillBoundingBox::activate() {
                 FillBoundingBox& follower = nbrAtLabel(label);
                 if(follower._state == State::Branch){
                     handleBranchPull(follower);
-                    FillBoundingBox& branch_child = nbrAtLabel(_branchDirExp);
-                    branch_child._compareInt = 1;
                     pull(label);
                     updateMoveDir(follower, moveDir);
-                    setBranchDir(follower);
-                    branch_child._compareInt = 0;
+                    follower._branchDirExp = (findExpDir(follower._moveDir, follower.tailDir()) + 2+findCCDistance(follower._moveDir, follower._branchDir))%10;
                 }else{
                     pull(label);
                     updateMoveDir(follower, moveDir);
@@ -302,6 +287,12 @@ void FillBoundingBox::activate() {
     }
     return;
 }
+
+
+
+
+
+// **********     DEFAULT FUNCTIONS     **********//
 
 int FillBoundingBox::headMarkColor() const {
   switch(_state) {
@@ -331,8 +322,6 @@ FillBoundingBox& FillBoundingBox::nbrAtLabel(int label) const {
   return AmoebotParticle::nbrAtLabel<FillBoundingBox>(label);
 }
 
-
-
 QString FillBoundingBox::inspectionText() const {
   QString text;
   text += "Global Info:\n";
@@ -361,10 +350,9 @@ QString FillBoundingBox::inspectionText() const {
   return text;
 }
 
-FillBoundingBox::State FillBoundingBox::getRandColor() const {
-  // Randomly select an integer and return the corresponding state via casting.
-  return static_cast<State>(randInt(0, 7));
-}
+
+// **********     CUSTOM HELPER FUNCTIONS     **********//
+
 
 int FillBoundingBox::getPointDir(FillBoundingBox& nbr) const {
     if(nbr.isContracted()){
@@ -400,13 +388,14 @@ int FillBoundingBox::getExpandLabel() const {
 
 void FillBoundingBox::updateMoveDir(FillBoundingBox& follower, int moveDir) const {
     follower._moveDir = dirToNbrDir(follower, moveDir);
-    for(int i = 0; i<10;i++){
-        if(pointsAtMe(follower, i)){
-            if(follower.isHeadLabel(i)){
-                follower._moveDirExp = i;
-            }
-        }
-    }
+//    for(int i = 0; i<10;i++){
+//        if(pointsAtMe(follower, i)){
+//            if(follower.isHeadLabel(i)){
+//                follower._moveDirExp = i;
+//            }
+//        }
+//    }
+    follower._moveDirExp = findExpDir(follower._moveDir, follower.tailDir());
 }
 
 // branch pulls coater to make him a Sbranch
@@ -486,6 +475,21 @@ int FillBoundingBox::getBranchDir() const {
     return -1;
 }
 
+int FillBoundingBox::findCCDistance(int begin, int end){
+    for(int distance = 0; distance < 6; distance++){
+        if(begin == end){
+            return distance;
+        }
+        begin++;
+        begin = begin % 6;
+    }
+    return -1;
+}
+
+int FillBoundingBox::findExpDir(int moveDir, int taildir) const{
+    return calculateMoveExpDir(moveDir, (taildir + 3) % 6);
+}
+
 void FillBoundingBox::setBranchDir(FillBoundingBox& particle) const {
     if(isContracted()){
         for(int i = 0; i < 6; i++){
@@ -542,6 +546,73 @@ void FillBoundingBox::handleBranchPull(FillBoundingBox& nbr) const {
     }
 }
 
+
+
+int FillBoundingBox::calculateMoveExpDir(int tailDir, int nbrTailDir) const{
+    int nbrMoveExpDir = tailDir;
+    switch(tailDir) {
+        case 0:
+            if(nbrTailDir == 2){
+                nbrMoveExpDir += 2;
+            }else if(nbrTailDir == 4){
+                nbrMoveExpDir -= 2;
+            }
+            break;
+        case 1:
+            if(nbrTailDir == 2){
+                nbrMoveExpDir += 2;
+            }else if(nbrTailDir == 3){
+                nbrMoveExpDir += 2;
+            }
+            break;
+
+        case 2:
+            if(nbrTailDir == 0){
+                nbrMoveExpDir -= 2;
+            }else if(nbrTailDir == 1){
+                nbrMoveExpDir -= 2;
+            }
+            nbrMoveExpDir += 2;
+            break;
+
+        case 3:
+            if(nbrTailDir == 1){
+                nbrMoveExpDir -= 2;
+            }else if(nbrTailDir == 5){
+                nbrMoveExpDir += 2;
+            }
+            nbrMoveExpDir += 2;
+            break;
+
+        case 4:
+            if(nbrTailDir == 0){
+                nbrMoveExpDir += 2;
+            }else if(nbrTailDir == 5){
+                nbrMoveExpDir += 2;
+            }
+            nbrMoveExpDir += 2;
+            break;
+
+        case 5:
+            if(nbrTailDir == 3){
+                nbrMoveExpDir -= 2;
+            }else if(nbrTailDir == 4){
+                nbrMoveExpDir -= 2;
+            }
+            nbrMoveExpDir += 4;
+            break;
+
+        default: std::cout << "default\n"; // no error
+                 break;
+    }
+    if(nbrMoveExpDir < 0){
+        nbrMoveExpDir = 10 - abs(nbrMoveExpDir)%10;
+    }else{
+        nbrMoveExpDir = nbrMoveExpDir%10;
+    }
+
+    return nbrMoveExpDir;
+}
 
 int FillBoundingBox::getFollowerLabel() const {
     int label_limit;
@@ -672,12 +743,12 @@ FillBoundingBoxSystem::FillBoundingBoxSystem(unsigned int numParticles) {
   // place particles, ensuring at most one particle is placed at each node.
   std::set<Node> occupied;
   Node node(-1, 1);
-  insert(new FillBoundingBox(node, -1, randDir(), *this, FillBoundingBox::State::Root));
+  insert(new FillBoundingBox(node, -1, 0, *this, FillBoundingBox::State::Root));
   occupied.insert(node);
 
   int cond = 0;
   int num_particle_row = 8;
-  int num_row = 2;
+  int num_row = 20;
   for (int y = 0; y < num_row; ++y) {
   cond = 8+y;
     for (int x = 0; x < num_particle_row; ++x) {
@@ -686,7 +757,7 @@ FillBoundingBoxSystem::FillBoundingBoxSystem(unsigned int numParticles) {
             continue;
         }else{
             Node node(0-x-2+y, 0-y+1);
-            insert(new FillBoundingBox(node, -1, randDir(), *this, FillBoundingBox::State::Inactive));
+            insert(new FillBoundingBox(node, -1, 0, *this, FillBoundingBox::State::Inactive));
             occupied.insert(node);
         }
 

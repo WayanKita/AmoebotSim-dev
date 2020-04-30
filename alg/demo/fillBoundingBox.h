@@ -120,6 +120,8 @@ class FillBoundingBox : public AmoebotParticle {
   void setBranchDir(FillBoundingBox &particle) const;
   int calculateMoveExpDir(int tailDir, int nbrTailDir) const;
   int findCCDistance(int begin, int end);
+  int findExpDir(int moveDir, int taildir) const;
+  void resetBranchVars();
 protected:
   // Returns a random State.
   State getRandColor() const;

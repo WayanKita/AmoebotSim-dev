@@ -55,6 +55,8 @@ class TestParticle : public AmoebotParticle {
                              int startLabel = 0) const;
 
   int calculateMoveExpDir(int moveDir, int nbrTailDir);
+  int findCCDistance(int begin, int end);
+  int findExpDir(int moveDir, int tailDir);
 protected:
   State state;
   int moveDir;

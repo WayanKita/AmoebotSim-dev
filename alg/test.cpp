@@ -19,6 +19,44 @@ void TestParticle::activate() {
     if (isContracted()) {
         if (state == State::Leader) {
             // Choose a random move direction not occupied by the follower.
+//            int dir = randDir();
+//            moveDir = randDir();
+//            while (hasNbrAtLabel(moveDir)) {
+//              moveDir = randDir();
+//            }
+//            expand(moveDir);
+            moveDir = 1;
+            int nbrLabel = labelOfFirstNbrInState({State::Follower});
+            TestParticle& nbr = nbrAtLabel(nbrLabel);
+            if(nbr.isExpanded()){
+                int diff = findCCDistance(nbr.moveDir, moveDir);
+                nbr.moveExpandDir = findExpDir(nbr.moveDir, nbr.tailDir());
+                int branchExpDir = (nbr.moveExpandDir+2+diff)%10;
+
+                cout << " nbr move dir "<<nbr.moveDir << " \n";
+                if(pointsAtMe(nbr, branchExpDir)){
+                    cout << "improved good \n";
+                }else{
+                    cout << "improved bad " << branchExpDir << " \n";
+                }
+
+                for(int i = 0; i< 10; i++){
+                    if(pointsAtMe(nbr, i)){
+                        if(nbr.isTailLabel(i)){
+                            branchExpDir = i;
+                        }
+                    }
+                }
+                if(pointsAtMe(nbr, branchExpDir)){
+                    cout << "good " << branchExpDir <<"\n";
+                }else{
+                    cout << "bad " << branchExpDir << " \n";
+                }
+                cout << " \n";
+                nbr.contractHead();
+            }
+        }
+        if (state == State::Follower) {
             int dir = randDir();
             moveDir = randDir();
             while (hasNbrAtLabel(moveDir)) {
@@ -43,10 +81,24 @@ void TestParticle::activate() {
                 nbr.moveExpandDir = calculateMoveExpDir(taildir, (nbr.tailDir() + 3) % 6);
             }
         }else if (state == State::Follower) {
-          contractTail();
-          moveDir = labelOfFirstNbrInState({State::Leader});
+
         }
     }
+}
+
+int TestParticle::findCCDistance(int begin, int end){
+    for(int distance = 0; distance < 6; distance++){
+        if(begin == end){
+            return distance;
+        }
+        begin++;
+        begin = begin % 6;
+    }
+    return -1;
+}
+
+int TestParticle::findExpDir(int moveDir, int taildir){
+    return calculateMoveExpDir(moveDir, (taildir + 3) % 6);
 }
 
 int TestParticle::calculateMoveExpDir(int tailDir, int nbrTailDir){
