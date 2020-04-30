@@ -88,7 +88,7 @@ void FillBoundingBox::activate() {
                         if(label > -1){
                             expand(label);
                             _branchDir = _moveDir;
-                            _branchDirExp = (findExpDir(label, tailDir()) + (2+findCCDistance(_moveDir,label)))%10;
+                            _branchDirExp = (findExpDir(label, tailDir()) + 2 + findCCDistance(label,_moveDir))%10;
                             _moveDir = label;
                             _state = State::Leader;
                         }
@@ -116,23 +116,42 @@ void FillBoundingBox::activate() {
 
         // *** BRANCH *** //
         else if (_state == State::Branch) {
-            if(hasNbrAtLabel(_moveDir)){
+//            if(hasNbrAtLabel(_moveDir)){
+//                FillBoundingBox& particle = nbrAtLabel(_moveDir);
+//                if(particle._state == State::Retired){
+//                    if(_branchDir != -1){
+//                        if(hasNbrAtLabel(_branchDir)){
+//                            FillBoundingBox& particle_brch = nbrAtLabel(_branchDir);
+//                            if(particle_brch._state == State::Retired){
+//                                _state = State::Retired;
+//                            }
+//                        }
+//                    }else{
+//                        _state = State::Retired;
+//                    }
+
+//                }
+//            }
+//            return;
+            if(hasNbrAtLabel(_branchDir)){
+                FillBoundingBox& particle = nbrAtLabel(_branchDir);
+                if(particle._state == State::Retired){
+                    _state = State::Coater;
+                    _branchDir = -1;
+                    _branchDirExp = -1;
+                    return;
+                }
+            }else if(hasNbrAtLabel(_moveDir)){
                 FillBoundingBox& particle = nbrAtLabel(_moveDir);
                 if(particle._state == State::Retired){
-                    if(_branchDir != -1){
-                        if(hasNbrAtLabel(_branchDir)){
-                            FillBoundingBox& particle_brch = nbrAtLabel(_branchDir);
-                            if(particle_brch._state == State::Retired){
-                                _state = State::Retired;
-                            }
-                        }
-                    }else{
-                        _state = State::Retired;
-                    }
-
+                    _state = State::Coater;
+                    _moveDir = _branchDir;
+                    _moveDirExp = _branchDirExp;
+                    return;
                 }
             }
             return;
+
         }
         return;
 
@@ -748,7 +767,7 @@ FillBoundingBoxSystem::FillBoundingBoxSystem(unsigned int numParticles) {
 
   int cond = 0;
   int num_particle_row = 8;
-  int num_row = 20;
+  int num_row = 24;
   for (int y = 0; y < num_row; ++y) {
   cond = 8+y;
     for (int x = 0; x < num_particle_row; ++x) {
