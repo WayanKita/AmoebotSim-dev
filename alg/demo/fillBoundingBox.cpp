@@ -32,7 +32,7 @@ void FillBoundingBox::activate() {
                     if(particle._state == State::Retired){
                         return;
                     }
-                    if(particle._state == State::Leader || particle._state == State::Coater){
+                    if(particle._state == State::Leader || particle._state == State::Coater || particle._state == State::Branch || particle._state == State::Sbranch){
                         return;
                     }
                 }
@@ -83,7 +83,7 @@ void FillBoundingBox::activate() {
                     }
                 }else if(_state == State::Coater){
                     int rndNumber = randInt(1, 100);
-                    if(rndNumber > 95 && !hasNbrInState({State::Root, State::Sroot, State::Sbranch, State::Branch, State::Leader})){
+                    if(true && !hasNbrInState({State::Root, State::Sroot, State::Sbranch, State::Branch, State::Leader})){
                         int label = getExpandLabel();
                         if(label > -1){
                             expand(label);
@@ -742,6 +742,7 @@ FillBoundingBoxSystem::FillBoundingBoxSystem(unsigned int numParticles) {
   // In order to enclose an area that's roughly 3.7x the # of particles using a
   // regular hexagon, the hexagon should have side length 1.4*sqrt(# particles).
   int sideLen = static_cast<int>(std::round(1.4 * std::sqrt(numParticles)));
+  sideLen = 5;
   Node boundNode(0, 0);
   for (int dir = 0; dir < 6; ++dir) {
     for (int i = 0; i < sideLen; ++i) {
@@ -767,7 +768,7 @@ FillBoundingBoxSystem::FillBoundingBoxSystem(unsigned int numParticles) {
 
   int cond = 0;
   int num_particle_row = 8;
-  int num_row = 24;
+  int num_row = 8;
   for (int y = 0; y < num_row; ++y) {
   cond = 8+y;
     for (int x = 0; x < num_particle_row; ++x) {
