@@ -280,10 +280,12 @@ void FillBoundingBox::activate() {
             if(hasNbrInState({State::Inactive})){
                 return;
             }else{
-                label = getFollowerLabel();
-                if(label < 0){
-                    contractTail();
-                    return;
+                if(_state == State::Follower){
+                    label = getFollowerLabel();
+                    if(label < 0){
+                        contractTail();
+                        return;
+                    }
                 }
             }
             label = getPullLabel();
