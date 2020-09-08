@@ -207,11 +207,11 @@ void ScriptInterface::shapeformation(const int numParticles,
   }
 }
 
-void ScriptInterface::fillboundingbox(const int numParticles) {
-  if (numParticles <= 0) {
-    log("# particles must be > 0", true);
-  } else {
-    sim.setSystem(std::make_shared<FillBoundingBoxSystem>(numParticles));
+void ScriptInterface::fillboundingbox(unsigned int sideLength, unsigned int objectShapeInt, unsigned int particleConfigInt) {
+  if (sideLength < 2) {
+    log("side length must be > 1", true);
+  }else {
+    sim.setSystem(std::make_shared<FillBoundingBoxSystem>(sideLength, objectShapeInt, particleConfigInt));
   }
 }
 

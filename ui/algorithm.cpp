@@ -56,8 +56,9 @@ AlgorithmList::AlgorithmList() {
 
   // fillBoundingBox.
   _algorithms.push_back(new Algorithm("Fill Bounding Box", "fillboundingbox"));
-  _algorithms.back()->addParameter("# Particles", "30");
-  _algorithms.back()->addParameter("Counter Max", "5");
+  _algorithms.back()->addParameter("Side Length", "2");
+  _algorithms.back()->addParameter("Object Shape", "0");
+   _algorithms.back()->addParameter("Particle Config", "0");
 
   // Demo: Pull Handovers.
   _algorithms.push_back(new Algorithm("Demo: Pull Handovers", "pulldemo"));

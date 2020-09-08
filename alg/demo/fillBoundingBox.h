@@ -22,16 +22,16 @@
 class FillBoundingBox : public AmoebotParticle {
  public:
   enum class State {
-    Leader,
+    Leaf,
     Inactive,
     Retired,
-    Leaf,
     Follower,
-    Coater,
-    Root,
-    Sroot,
+    Filler,
+    Leader,
+    SmallLeader,
     Branch,
     Sbranch,
+    Finished,
   };
 
   // Constructs a new particle with a node position for its head, a global
@@ -105,7 +105,7 @@ class FillBoundingBox : public AmoebotParticle {
 
   void handleBranchPull(FillBoundingBox &nbr) const;
 
-  int updateLeaderDir(FillBoundingBox &moveDirNbr) const;
+  int updateLeafDir(FillBoundingBox &moveDirNbr) const;
 
   void updateBranchExpDir(FillBoundingBox &branch, FillBoundingBox &otherFollower) const;
 
@@ -115,7 +115,7 @@ class FillBoundingBox : public AmoebotParticle {
   void updateSbranchExpDir(FillBoundingBox &smallBranch) const;
   void updateBranchExpDir(FillBoundingBox &branch) const;
   int updateBranchDir() const;
-  int updateLeaderDir() const;
+  int updateLeafDir() const;
   int getBranchDir() const;
   void setBranchDir(FillBoundingBox &particle) const;
   int calculateMoveExpDir(int tailDir, int nbrTailDir) const;
@@ -143,7 +143,15 @@ class FillBoundingBoxSystem : public AmoebotSystem {
  public:
   // Constructs a system of the specified number of DiscoDemoParticles enclosed
   // by a hexagonal ring of objects.
-  FillBoundingBoxSystem(unsigned int numParticles = 30);
+    FillBoundingBoxSystem(unsigned int sideLength, unsigned int objectShapeInt, unsigned int particleConfigInt);
+    bool hasTerminated() const override;
+
+    bool checkIfNodeValid(Node node, int quadrant, int sideLength);
+    bool checkIfNodeDoubleValid(Node node, int quadrant);
+    float area(int x1, int y1, int x2, int y2, int x3, int y3);
+    bool isInside(int x2, int y2, int x3, int y3, int x, int y);
+    bool detectEdgeCase(Node node, int quadrant);
+
 };
 
 #endif // 2DDFILL_H

@@ -76,7 +76,7 @@ class ScriptInterface : public QObject {
                       const double holeProb = 0.2);
   void shapeformation(const int numParticles = 200, const double holeProb = 0.2,
                       const QString mode = "h");
-  void fillboundingbox(const int numParticles = 30);
+  void fillboundingbox(unsigned int sideLength = 2, unsigned int objectShapeInt = 0, unsigned int particleConfigInt = 0);
 
  private:
   ScriptEngine& engine;

@@ -67,7 +67,7 @@ const std::deque<Object*>& AmoebotSystem::getObjects() const {
 
 void AmoebotSystem::insert(AmoebotParticle* particle) {
   Q_ASSERT(particleMap.find(particle->head) == particleMap.end());
-  Q_ASSERT(objectMap.find(particle->head) == objectMap.end());
+//  Q_ASSERT(objectMap.find(particle->head) == objectMap.end());
   Q_ASSERT(!particle->isExpanded() ||
            particleMap.find(particle->tail()) == particleMap.end());
 
@@ -79,7 +79,7 @@ void AmoebotSystem::insert(AmoebotParticle* particle) {
 }
 
 void AmoebotSystem::insert(Object* object) {
-  Q_ASSERT(objectMap.find(object->_node) == objectMap.end());
+//  Q_ASSERT(objectMap.find(object->_node) == objectMap.end());
   Q_ASSERT(particleMap.find(object->_node) == particleMap.end());
 
   objects.push_back(object);
